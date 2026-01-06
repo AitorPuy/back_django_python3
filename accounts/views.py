@@ -28,6 +28,64 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
     # forzar email como campo de login
     username_field = User.EMAIL_FIELD if hasattr(User, "EMAIL_FIELD") else "email"
 
+    def validate(self, attrs):
+        from django.contrib.auth import authenticate
+        from rest_framework_simplejwt import exceptions
+        from rest_framework_simplejwt.settings import api_settings
+        
+        email = attrs.get(self.username_field)
+        password = attrs.get("password")
+
+        # Verificar primero si el usuario existe
+        try:
+            user_exists = User.objects.get(email=email)
+        except User.DoesNotExist:
+            raise exceptions.AuthenticationFailed(
+                "No existe un usuario con este email",
+                "user_not_found",
+            )
+
+        # Si el usuario existe pero está inactivo
+        if not user_exists.is_active:
+            raise exceptions.AuthenticationFailed(
+                "Esta cuenta está desactivada",
+                "user_inactive",
+            )
+
+        # Intentar autenticar
+        authenticate_kwargs = {
+            self.username_field: email,
+            "password": password,
+        }
+        try:
+            authenticate_kwargs["request"] = self.context["request"]
+        except KeyError:
+            pass
+
+        authenticated_user = authenticate(**authenticate_kwargs)
+
+        if not authenticated_user:
+            raise exceptions.AuthenticationFailed(
+                "Contraseña incorrecta",
+                "invalid_password",
+            )
+
+        # Establecer el usuario y generar los tokens (igual que hace TokenObtainPairSerializer)
+        self.user = authenticated_user
+        
+        refresh = self.get_token(self.user)
+        
+        data = {
+            "refresh": str(refresh),
+            "access": str(refresh.access_token),
+        }
+        
+        if api_settings.UPDATE_LAST_LOGIN:
+            from django.contrib.auth.models import update_last_login
+            update_last_login(None, self.user)
+        
+        return data
+
 class EmailTokenObtainPairView(TokenObtainPairView):
     serializer_class = EmailTokenObtainPairSerializer
 
