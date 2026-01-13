@@ -11,7 +11,6 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv("SECRET_KEY")
-DEBUG = os.getenv("DEBUG") == "True"
 
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "").split(",")
 
@@ -27,6 +26,9 @@ INSTALLED_APPS = [
     "accounts",
     "clients",
     "providers",
+    "companies",
+    "articles",
+    "warehouses",
     "django_extensions",
 ]
 
@@ -63,7 +65,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DEBUG = os.getenv("DEBUG", "True") == "True"
+# DEBUG: True en local, False en producción
+# Se puede controlar con variable de entorno DEBUG o ENVIRONMENT
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+DEBUG = os.getenv("DEBUG", "True" if ENVIRONMENT == "development" else "False") == "True"
 
 DATABASES = {
     "default": {
@@ -73,11 +78,14 @@ DATABASES = {
         "PASSWORD": os.getenv("DB_PASSWORD"),
         "HOST": os.getenv("DB_HOST"),
         "PORT": os.getenv("DB_PORT"),
-        "OPTIONS": {
-            "sslmode": "require",
-        },
     }
 }
+
+# Solo requerir SSL en producción (cuando DEBUG es False)
+if not DEBUG:
+    DATABASES["default"]["OPTIONS"] = {
+        "sslmode": "require",
+    }
 
 # if DEBUG:
 #     DATABASES = {
