@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "companies",
     "articles",
     "warehouses",
+    "locations",
     "django_extensions",
 ]
 
